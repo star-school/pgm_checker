@@ -460,7 +460,7 @@
                       type: "warning",
                       sprite: spriteName,
                       title: "メッセージの名前（タイポ）に注意！",
-                      message: `「${spriteName}」のメッセージ名がズレています。お手本は「${paramErrorDetail.expected}」ですが、生徒は「${paramErrorDetail.actual || '未設定'}」になっています。`,
+                      message: `「${spriteName}」のメッセージ名がズレています。お手本は「${paramErrorDetail.expected}」ですが、「${paramErrorDetail.actual || '未設定'}」になっています。`,
                       blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
                    });
                 } else if (paramErrorDetail.type === "input") {
@@ -469,7 +469,7 @@
                       type: "warning",
                       sprite: spriteName,
                       title: "ブロックの中の「数字（設定）」がおしい！",
-                      message: `「${spriteName}」の以下のブロックの【${label}】の数字が違います。お手本は「${paramErrorDetail.expected}」ですが、生徒は異なる数字になっています。`,
+                      message: `「${spriteName}」の以下のブロックの【${label}】の数字が違います。お手本は「${paramErrorDetail.expected}」ですが、異なるデータになっています。`,
                       blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
                    });
                 }
