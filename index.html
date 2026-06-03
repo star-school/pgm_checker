@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scratchプログラム チェック</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    body { font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; }
+    .file-drop-zone { transition: all 0.2s ease; }
+    .file-drop-zone:hover { background-color: #f0f9ff; border-color: #3b82f6; }
+    
+    .scratch-stage-container {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background-color: #f3f4f6;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 pb-12">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // アイコンコンポーネント
+    const CheckCircle = () => <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+    const AlertTriangle = () => <svg className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>;
+    const XCircle = () => <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+
+    // Scratchブロックの内部名称から日本語への対照表 (完全網羅版)
+    const BLOCK_NAMES = {
+      // 動き
+      "motion_movesteps": "「〇歩動かす」",
+      "motion_turnright": "「右に〇度回す」",
+      "motion_turnleft": "「左に〇度回す」",
+      "motion_goto": "「〇へ行く」",
+      "motion_gotoxy": "「x座標を〇、y座標を〇にする」",
+      "motion_glideto": "「〇秒で〇へ行く」",
+      "motion_glidesecstoxy": "「〇秒でx座標を〇、y座標を〇にする」",
+      "motion_pointindirection": "「〇度に向ける」",
+      "motion_pointtowards": "「〇へ向ける」",
+      "motion_changexby": "「x座標を〇ずつ変える」",
+      "motion_setx": "「x座標を〇にする」",
+      "motion_changeyby": "「y座標を〇ずつ変える」",
+      "motion_sety": "「y座標を〇にする」",
+      "motion_ifonedgebounce": "「もし端に着いたら、跳ね返る」",
+      "motion_setrotationstyle": "「回転方法を〇にする」",
+      "motion_xposition": "「x座標」",
+      "motion_yposition": "「y座標」",
+      "motion_direction": "「向き」",
+      // 見た目
+      "looks_sayforsecs": "「〇と〇秒言う」",
+      "looks_say": "「〇と言う」",
+      "looks_thinkforsecs": "「〇と〇秒考える」",
+      "looks_think": "「〇と考える」",
+      "looks_switchcostumeto": "「コスチュームを〇にする」",
+      "looks_nextcostume": "「次のコスチュームにする」",
+      "looks_switchbackdropto": "「背景を〇にする」",
+      "looks_nextbackdrop": "「次の背景にする」",
+      "looks_changesizeby": "「大きさを〇ずつ変える」",
+      "looks_setsizeto": "「大きさを〇%にする」",
+      "looks_changeeffectby": "「〇の効果を〇ずつ変える」",
+      "looks_seteffectto": "「〇の効果を〇にする」",
+      "looks_cleargraphiceffects": "「画像効果をなくす」",
+      "looks_show": "「表示する」",
+      "looks_hide": "「隠す」",
+      "looks_gotofrontback": "「〇層へ移動する」",
+      "looks_goforwardbackwardlayers": "「〇層〇移動する」",
+      "looks_costumenumbername": "「コスチュームの〇」",
+      "looks_backdropnumbername": "「背景の〇」",
+      "looks_size": "「大きさ」",
+      // 音
+      "sound_playuntildone": "「終わるまで〇の音を鳴らす」",
+      "sound_play": "「〇の音を鳴らす」",
+      "sound_stopallsounds": "「すべての音を止める」",
+      "sound_changeeffectby": "「〇の効果を〇ずつ変える」",
+      "sound_seteffectto": "「〇の効果を〇にする」",
+      "sound_cleareffects": "「音の効果をなくす」",
+      "sound_changevolumeby": "「音量を〇ずつ変える」",
+      "sound_setvolumeto": "「音量を〇%にする」",
+      "sound_volume": "「音量」",
+      // イベント
+      "event_whenflagclicked": "「緑の旗が押されたとき」",
+      "event_whenkeypressed": "「〇キーが押されたとき」",
+      "event_whenthisspriteclicked": "「このスプライトが押されたとき」",
+      "event_whenstageclicked": "「ステージが押されたとき」",
+      "event_whenbackdropswitchesto": "「背景が〇になったとき」",
+      "event_whengreaterthan": "「〇 ＞ 〇のとき」",
+      "event_whenbroadcastreceived": "「〇を受け取ったとき」",
+      "event_broadcast": "「〇を送る」",
+      "event_broadcastandwait": "「〇を送って待つ」",
+      // 制御
+      "control_wait": "「〇秒待つ」",
+      "control_repeat": "「〇回繰り返す」",
+      "control_forever": "「ずっと」",
+      "control_if": "「もし〇なら」",
+      "control_if_else": "「もし〇なら〜でなければ」",
+      "control_wait_until": "「〇まで待つ」",
+      "control_repeat_until": "「〇まで繰り返す」",
+      "control_stop": "「止める」",
+      "control_start_as_clone": "「クローンされたとき」",
+      "control_create_clone_of": "「〇のクローンを作る」",
+      "control_delete_this_clone": "「このクローンを削除する」",
+      // 調べる
+      "sensing_touchingobject": "「〇に触れた」",
+      "sensing_touchingcolor": "「〇色に触れた」",
+      "sensing_coloristouchingcolor": "「〇色が〇色に触れた」",
+      "sensing_distanceto": "「〇までの距離」",
+      "sensing_askandwait": "「〇と聞いて待つ」",
+      "sensing_answer": "「答え」",
+      "sensing_keypressed": "「〇キーが押された」",
+      "sensing_mousedown": "「マウスが押された」",
+      "sensing_mousex": "「マウスのx座標」",
+      "sensing_mousey": "「マウスのy座標」",
+      "sensing_setdragmode": "「ドラッグできるように/できないようにする」",
+      "sensing_loudness": "「音量」",
+      "sensing_timer": "「タイマー」",
+      "sensing_resettimer": "「タイマーをリセット」",
+      "sensing_of": "「〇の〇」",
+      "sensing_current": "「現在の〇」",
+      "sensing_dayssince2000": "「2000年からの日数」",
+      "sensing_username": "「ユーザー名」",
+      // 演算
+      "operator_add": "「〇 ＋ 〇」",
+      "operator_subtract": "「〇 － 〇」",
+      "operator_multiply": "「〇 × 〇」",
+      "operator_divide": "「〇 ／ 〇」",
+      "operator_random": "「〇から〇までの乱数」",
+      "operator_gt": "「〇 ＞ 〇」",
+      "operator_lt": "「〇 ＜ 〇」",
+      "operator_equals": "「〇 ＝ 〇」",
+      "operator_and": "「〇 かつ 〇」",
+      "operator_or": "「〇 または 〇」",
+      "operator_not": "「〇ではない」",
+      "operator_join": "「〇と〇」",
+      "operator_letter_of": "「〇の〇番目の文字」",
+      "operator_length": "「〇の長さ」",
+      "operator_contains": "「〇に〇が含まれる」",
+      "operator_mod": "「〇を〇で割った余り」",
+      "operator_round": "「〇の四捨五入」"
+    };
+
+    const translateOpcode = (opcode) => {
+      if (BLOCK_NAMES[opcode]) return BLOCK_NAMES[opcode];
+      if (opcode.startsWith("data_setvariableto")) return "「変数を〇にする」";
+      if (opcode.startsWith("data_changevariableby")) return "「変数を〇ずつ変える」";
+      if (opcode.startsWith("data_showvariable")) return "「変数を見せる」";
+      if (opcode.startsWith("data_hidevariable")) return "「変数を隠す」";
+      if (opcode.startsWith("data_addtolist")) return "「〇をリストに追加する」";
+      if (opcode.startsWith("data_deletealloflist")) return "「リストのすべてを削除する」";
+      if (opcode.startsWith("data_deleteoflist")) return "「リストの〇番目を削除する」";
+      if (opcode.startsWith("data_insertatlist")) return "「〇をリストの〇番目に挿入する」";
+      if (opcode.startsWith("data_replaceitemoflist")) return "「リストの〇番目を〇で置き換える」";
+      if (opcode.startsWith("data_itemoflist")) return "「リストの〇番目」";
+      if (opcode.startsWith("data_itemnumoflist")) return "「リストの〇の場所」";
+      if (opcode.startsWith("data_lengthoflist")) return "「リストの長さ」";
+      if (opcode.startsWith("data_listcontainsitem")) return "「リストに〇が含まれる」";
+      if (opcode.startsWith("data_showlist")) return "「リストを見せる」";
+      if (opcode.startsWith("data_hidelist")) return "「リストを隠す」";
+      if (opcode.startsWith("argument_reporter")) return "「引数ブロック」";
+      if (opcode.startsWith("music_")) return "「音楽ブロック」";
+      if (opcode.startsWith("videoSensing_")) return "「ビデオ検知ブロック」";
+      
+      return `「${opcode}」`;
+    }
+
+    // ブロックのカテゴリごとの背景色・テキスト色・ボーダー色を返す関数
+    const getBlockColorClasses = (opcode) => {
+      if (!opcode) return 'bg-gray-400 text-white border-gray-500';
+      if (opcode.startsWith('motion_')) return 'bg-[#4C97FF] text-white border-[#3373CC]';
+      if (opcode.startsWith('looks_')) return 'bg-[#9966FF] text-white border-[#774DCB]';
+      if (opcode.startsWith('sound_')) return 'bg-[#CF63CF] text-white border-[#BD42BD]';
+      if (opcode.startsWith('event_')) return 'bg-[#FFBF00] text-white border-[#CC9900]';
+      if (opcode.startsWith('control_')) return 'bg-[#FFAB19] text-white border-[#CF8B17]';
+      if (opcode.startsWith('sensing_')) return 'bg-[#5CB1D6] text-white border-[#2E8EB8]';
+      if (opcode.startsWith('operator_')) return 'bg-[#59C059] text-white border-[#389438]';
+      if (opcode.startsWith('data_list') || opcode.startsWith('data_item') || opcode.startsWith('data_insert') || opcode.startsWith('data_replace') || opcode.startsWith('data_length') || opcode.startsWith('data_showlist') || opcode.startsWith('data_hidelist')) return 'bg-[#FF661A] text-white border-[#FF3300]';
+      if (opcode.startsWith('data_')) return 'bg-[#FF8C1A] text-white border-[#DB6E00]';
+      if (opcode.startsWith('procedures_') || opcode.startsWith('argument_')) return 'bg-[#FF6680] text-white border-[#FF3355]';
+      if (opcode.startsWith('pen_') || opcode.startsWith('music_') || opcode.startsWith('videoSensing_')) return 'bg-[#0FBD8C] text-white border-[#0B8E69]';
+      return 'bg-gray-400 text-white border-gray-500';
+    };
+
+    // 値だけのブロックや内部的なブロックは採点の「処理ブロック」としてカウントしない
+    const isIgnoredOpcode = (opcode) => {
+      return opcode === "data_variable" || 
+             opcode === "data_listcontents" || 
+             opcode === "procedures_prototype" ||
+             opcode.startsWith("argument_reporter");
+    };
+
+    // ファイルのアクセス権限エラー回避のため、ArrayBufferに安全に変換するヘルパー関数
+    const readFileAsArrayBuffer = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error("ファイルの読み込みに失敗しました"));
+        reader.readAsArrayBuffer(file);
+      });
+    };
+
+    // 繋がっている（有効な）ブロックのみを抽出する
+    function getConnectedBlocksMap(projectJson) {
+      const activeBlocksMap = {};
+
+      projectJson.targets.forEach(target => {
+        const blocks = target.blocks || {};
+        const activeBlockIds = new Set();
+
+        const hatBlockIds = Object.keys(blocks).filter(id => {
+          const b = blocks[id];
+          if (!b || typeof b !== 'object' || !b.opcode) return false;
+          return b.opcode.startsWith("event_when") || b.opcode === "control_start_as_clone";
+        });
+
+        const traceConnection = (blockId) => {
+          if (!blockId || activeBlockIds.has(blockId)) return;
+          const block = blocks[blockId];
+          if (!block || typeof block !== 'object') return;
+
+          activeBlockIds.add(blockId);
+
+          if (block.next) traceConnection(block.next);
+
+          if (block.inputs) {
+            Object.keys(block.inputs).forEach(key => {
+              const inputVal = block.inputs[key];
+              if (Array.isArray(inputVal) && inputVal[1]) {
+                if (typeof inputVal[1] === 'string' && blocks[inputVal[1]]) {
+                  traceConnection(inputVal[1]);
+                }
+              }
+            });
+          }
+        };
+
+        hatBlockIds.forEach(id => traceConnection(id));
+
+        const filteredBlocks = {};
+        activeBlockIds.forEach(id => {
+          filteredBlocks[id] = blocks[id];
+        });
+
+        activeBlocksMap[target.name] = {
+          isStage: target.isStage,
+          blocks: filteredBlocks,
+          broadcasts: projectJson.meta?.broadcasts || {}
+        };
+      });
+
+      return activeBlocksMap;
+    }
+
+    // インプット値（手入力された数値、接続ブロック）を正しく抽出する関数
+    function getInputValue(block, inputName, blocks) {
+      const input = block.inputs && block.inputs[inputName];
+      if (!input) return undefined;
+
+      const valInfo = input[1];
+      if (!valInfo) return undefined;
+
+      if (Array.isArray(valInfo)) {
+        return valInfo[1];
+      }
+
+      if (typeof valInfo === 'string' && blocks[valInfo]) {
+        const connectedBlock = blocks[valInfo];
+        if (connectedBlock.fields) {
+          const fieldKeys = Object.keys(connectedBlock.fields);
+          if (fieldKeys.length > 0) {
+            return connectedBlock.fields[fieldKeys[0]][0];
+          }
+        }
+      }
+
+      return undefined;
+    }
+
+    // 高精度チェックエンジン
+    function advancedGradeProject(teacherJson, studentJson) {
+      const feedbacks = [];
+      let score = 100;
+
+      const teacherMap = getConnectedBlocksMap(teacherJson);
+      const studentMap = getConnectedBlocksMap(studentJson);
+
+      const teacherAllOpcodes = new Set();
+      Object.values(teacherMap).forEach(sprite => {
+        Object.values(sprite.blocks).forEach(b => {
+          if (b.opcode && !isIgnoredOpcode(b.opcode) && !b.shadow) {
+            teacherAllOpcodes.add(b.opcode);
+          }
+        });
+      });
+
+      const extraBlocksArray = [];
+      Object.keys(studentMap).forEach(sName => {
+        const sSprite = studentMap[sName];
+        Object.values(sSprite.blocks).forEach(b => {
+          if (b.opcode && !isIgnoredOpcode(b.opcode) && !b.shadow) {
+            if (!teacherAllOpcodes.has(b.opcode)) {
+              extraBlocksArray.push({ opcode: b.opcode, sprite: sName });
+            }
+          }
+        });
+      });
+
+      const uniqueExtraBlocks = extraBlocksArray.filter((v, i, a) => a.findIndex(t => (t.opcode === v.opcode && t.sprite === v.sprite)) === i);
+
+      if (uniqueExtraBlocks.length > 0) {
+        score -= uniqueExtraBlocks.length * 5; 
+        feedbacks.push({
+          type: "warning",
+          title: "不要なブロックが混じっています",
+          message: `お手本にはないブロックが使われています。課題に必要ないブロックが含まれていないか確認してください。`,
+          blocks: uniqueExtraBlocks
+          // 不要ブロックは複数のスプライトにまたがる可能性があるので、メインアイコンはなし
+        });
+      }
+
+      Object.keys(teacherMap).forEach(spriteName => {
+        const tSprite = teacherMap[spriteName];
+        const sSprite = studentMap[spriteName];
+
+        if (!sSprite) {
+          score -= 20;
+          feedbacks.push({
+            type: "error",
+            sprite: spriteName, 
+            title: `キャラクター不一致 (${spriteName})`,
+            message: `お手本にあるキャラクター「${spriteName}」が、生徒の作品に見つかりません。`
+          });
+          return;
+        }
+
+        const tBlocks = tSprite.blocks;
+        const sBlocks = sSprite.blocks;
+
+        Object.keys(tBlocks).forEach(bId => {
+          const tBlock = tBlocks[bId];
+          if (!tBlock || typeof tBlock !== 'object' || !tBlock.opcode) return;
+          if (isIgnoredOpcode(tBlock.opcode) || tBlock.shadow) return;
+
+          const matchingStudentBlockIds = Object.keys(sBlocks).filter(id => sBlocks[id].opcode === tBlock.opcode && !sBlocks[id].shadow);
+
+          if (matchingStudentBlockIds.length === 0) {
+            score -= 10;
+            feedbacks.push({
+              type: "error",
+              sprite: spriteName, 
+              title: "必要なブロックが見つかりません",
+              message: `「${spriteName}」の中に、必須となる以下のブロックが配置されていません。`,
+              blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
+            });
+            return;
+          }
+
+          let tParentOpcode = null;
+          let isSubstack = false;
+          let isNext = false; 
+          let tParentId = tBlock.parent;
+          
+          if (tParentId && tBlocks[tParentId]) {
+            const pBlock = tBlocks[tParentId];
+            if (pBlock.inputs && pBlock.inputs.SUBSTACK && pBlock.inputs.SUBSTACK[1] === bId) {
+               tParentOpcode = pBlock.opcode;
+               isSubstack = true;
+            } else if (pBlock.next === bId) { 
+               tParentOpcode = pBlock.opcode;
+               isNext = true;
+            }
+          }
+
+          const expectedFields = {};
+          if (tBlock.fields) {
+            Object.keys(tBlock.fields).forEach(k => { expectedFields[k] = tBlock.fields[k][0]; });
+          }
+
+          const expectedInputs = {};
+          if (tBlock.inputs) {
+            Object.keys(tBlock.inputs).forEach(k => {
+               const val = getInputValue(tBlock, k, tBlocks);
+               if (val !== undefined) {
+                 expectedInputs[k] = val;
+               }
+            });
+          }
+
+          let perfectMatch = false;
+          let nestError = false;
+          let nextError = false; 
+          let paramErrorDetail = null;
+
+          for (const sId of matchingStudentBlockIds) {
+             const sBlock = sBlocks[sId];
+             let cNestOk = true;
+             let cNextOk = true;
+             
+             if (isSubstack) {
+               cNestOk = false;
+               const sParentId = sBlock.parent;
+               if (sParentId && sBlocks[sParentId]) {
+                 const sPBlock = sBlocks[sParentId];
+                 if (sPBlock.opcode === tParentOpcode && sPBlock.inputs && sPBlock.inputs.SUBSTACK && sPBlock.inputs.SUBSTACK[1] === sId) {
+                   cNestOk = true;
+                 }
+               }
+             } else if (isNext) { 
+               cNextOk = false;
+               const sParentId = sBlock.parent;
+               if (sParentId && sBlocks[sParentId]) {
+                 const sPBlock = sBlocks[sParentId];
+                 if (sPBlock.opcode === tParentOpcode && sPBlock.next === sId) {
+                   cNextOk = true;
+                 }
+               }
+             }
+
+             let cParamOk = true;
+             let currentParamError = null;
+             
+             Object.keys(expectedFields).forEach(k => {
+                const sVal = sBlock.fields && sBlock.fields[k] ? sBlock.fields[k][0] : null;
+                if (String(expectedFields[k]) !== String(sVal)) {
+                   cParamOk = false;
+                   if (k === "BROADCAST_OPTION") { currentParamError = { type: "broadcast", expected: expectedFields[k], actual: sVal }; }
+                }
+             });
+
+             Object.keys(expectedInputs).forEach(k => {
+                const sVal = getInputValue(sBlock, k, sBlocks);
+                if (String(expectedInputs[k]) !== String(sVal)) {
+                   cParamOk = false;
+                   if (!currentParamError) { currentParamError = { type: "input", key: k, expected: expectedInputs[k], actual: sVal }; }
+                }
+             });
+
+             if (cNestOk && cNextOk && cParamOk) {
+                perfectMatch = true;
+                break;
+             } else {
+                if (!cNestOk) nestError = true;
+                if (!cNextOk) nextError = true;
+                if (!cParamOk && currentParamError) paramErrorDetail = currentParamError;
+             }
+          }
+
+          if (!perfectMatch) {
+             if (paramErrorDetail) {
+                if (paramErrorDetail.type === "broadcast") {
+                   score -= 5;
+                   feedbacks.push({
+                      type: "warning",
+                      sprite: spriteName, 
+                      title: "メッセージの名前（タイポ）に注意！",
+                      message: `「${spriteName}」のメッセージ名がズレています。お手本は「${paramErrorDetail.expected}」ですが、生徒は「${paramErrorDetail.actual || '未設定'}」になっています。`,
+                      blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
+                   });
+                } else if (paramErrorDetail.type === "input") {
+                   score -= 3;
+                   const label = paramErrorDetail.key === 'STEPS' ? '歩数' : (paramErrorDetail.key === 'SECS' ? '秒数' : '設定値');
+                   feedbacks.push({
+                      type: "warning",
+                      sprite: spriteName, 
+                      title: "ブロックの中の「数字（設定）」がおしい！",
+                      message: `「${spriteName}」の以下のブロックの【${label}】の数字が違います。お手本は「${paramErrorDetail.expected}」ですが、生徒は異なる数字になっています。`,
+                      blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
+                   });
+                }
+             } else if (nestError) {
+                score -= 8;
+                feedbacks.push({
+                  type: "warning",
+                  sprite: spriteName, 
+                  title: "ブロックを置く場所（中に入れる）が違います",
+                  message: `「${spriteName}」の以下のブロックは、${translateOpcode(tParentOpcode)} の「中（内側）」に入れる必要があります。`,
+                  blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
+                });
+             } else if (nextError) { 
+                score -= 8;
+                feedbacks.push({
+                  type: "warning",
+                  sprite: spriteName, 
+                  title: "ブロックの順番が違います",
+                  message: `「${spriteName}」の以下のブロックは、${translateOpcode(tParentOpcode)} の「次（下）」に繋げる必要があります。順番が入れ替わっていませんか？`,
+                  blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
+                });
+             }
+          }
+        });
+      });
+
+      const uniqueFeedbacks = feedbacks.filter((v, i, a) => a.findIndex(t => (t.message === v.message)) === i);
+
+      if (score === 100) {
+        uniqueFeedbacks.unshift({
+          type: "success",
+          title: "パーフェクト！すべて合っています",
+          message: "ブロックの種類、順番、数字、メッセージのペアまですべて完璧です！"
+        });
+      } else if (score >= 70) {
+        uniqueFeedbacks.unshift({
+          type: "success",
+          title: "おしい！あと一歩で完成です",
+          message: "基本的なブロックの組み方は合っています。下の注意点の箇所を直してみよう！"
+        });
+      }
+
+      const studentBlockList = [];
+      const seenBlocks = new Set();
+      Object.keys(studentMap).forEach(sName => {
+        Object.values(studentMap[sName].blocks).forEach(b => {
+          if(b.opcode && !isIgnoredOpcode(b.opcode) && !b.shadow) {
+            const key = `${sName}-${b.opcode}`;
+            if (!seenBlocks.has(key)) {
+              seenBlocks.add(key);
+              studentBlockList.push({ sprite: sName, opcode: b.opcode });
+            }
+          }
+        });
+      });
+
+      return { score: Math.max(0, score), feedbacks: uniqueFeedbacks, studentBlockList };
+    }
+
+    const FileInput = ({ label, onChange, file, id, colorClass }) => (
+      <div className="file-drop-zone border-2 border-dashed border-gray-300 rounded-xl p-3 flex flex-col items-center justify-center bg-white h-32 relative overflow-hidden">
+        <svg className={`w-7 h-7 mb-1 ${colorClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+        <p className="font-bold text-xs text-gray-700 text-center">{label}</p>
+        <input type="file" id={id} accept=".sb3" onChange={(e) => onChange(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+        {file && <div className="mt-1.5 bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full text-[10px] font-semibold max-w-full truncate">✅ {file.name}</div>}
+      </div>
+    );
+
+    function App() {
+      const [teacherFile, setTeacherFile] = useState(null);
+      const [studentFile, setStudentFile] = useState(null);
+      const [teacherRequiredOpcodes, setTeacherRequiredOpcodes] = useState([]);
+      const [result, setResult] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
+      
+      const [renderingTeacher, setRenderingTeacher] = useState(false);
+      const [renderingStudent, setRenderingStudent] = useState(false);
+
+      const teacherContainerRef = useRef(null);
+      const studentContainerRef = useRef(null);
+
+      const extractRequiredOpcodes = (projectJson) => {
+        const opcodes = new Set();
+        const connectedMap = getConnectedBlocksMap(projectJson);
+        Object.keys(connectedMap).forEach(sName => {
+          Object.values(connectedMap[sName].blocks).forEach(b => {
+            if (b.opcode && !isIgnoredOpcode(b.opcode) && !b.shadow) {
+              opcodes.add(b.opcode);
+            }
+          });
+        });
+        return Array.from(opcodes);
+      };
+
+      const renderScratchStage = async (file, containerRef, setRenderingStatus, isTeacher = false) => {
+        if (!file || !containerRef.current) return;
+        setRenderingStatus(true);
+        try {
+          containerRef.current.innerHTML = '';
+          const canvas = document.createElement('canvas');
+          canvas.width = 480; canvas.height = 360;
+          canvas.className = "w-full h-full object-contain shadow-sm rounded-lg border border-gray-300";
+          containerRef.current.appendChild(canvas);
+          const ctx = canvas.getContext('2d');
+
+          const zip = new window.JSZip();
+          const buffer = await readFileAsArrayBuffer(file);
+          const contents = await zip.loadAsync(buffer);
+          const projectJson = JSON.parse(await contents.file("project.json").async("string"));
+
+          if (isTeacher) {
+            const ops = extractRequiredOpcodes(projectJson);
+            setTeacherRequiredOpcodes(ops);
+          }
+
+          const assetCache = {};
+          for (const filename in contents.files) {
+            if (filename.endsWith('.svg') || filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+              const base64 = await contents.file(filename).async("base64");
+              const mimeType = filename.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
+              assetCache[filename] = `data:${mimeType};base64,${base64}`;
+            }
+          }
+
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 480, 360);
+          
+          const stage = projectJson.targets.find(t => t.isStage);
+          if (stage && stage.costumes) {
+            const backdropIdx = typeof stage.currentCostume === 'number' ? stage.currentCostume : 0;
+            const backdropCostume = stage.costumes[backdropIdx];
+            if (backdropCostume && assetCache[backdropCostume.md5ext]) {
+              const img = new Image();
+              img.src = assetCache[backdropCostume.md5ext];
+              await new Promise(r => img.onload = r);
+              ctx.drawImage(img, 0, 0, 480, 360);
+            }
+          }
+
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.04)"; ctx.lineWidth = 1; ctx.beginPath();
+          ctx.moveTo(240, 0); ctx.lineTo(240, 360);
+          ctx.moveTo(0, 180); ctx.lineTo(480, 180);
+          ctx.stroke();
+
+          for (const t of projectJson.targets) {
+            if (t.isStage) continue;
+            
+            const isVisible = t.visible !== false;
+            const costumeIdx = typeof t.currentCostume === 'number' ? t.currentCostume : 0;
+            const costume = t.costumes && t.costumes[costumeIdx];
+            
+            if (costume && assetCache[costume.md5ext]) {
+              const img = new Image(); img.src = assetCache[costume.md5ext];
+              await new Promise(r => img.onload = r);
+              
+              const cx = 240 + (t.x || 0); 
+              const cy = 180 - (t.y || 0); 
+              const scale = (t.size || 100) / 100;
+              
+              let origW = img.naturalWidth || img.width;
+              let origH = img.naturalHeight || img.height;
+              if (costume.md5ext.endsWith('.svg') && (origW === 0 || origW === 300 || origH === 0 || origH === 150)) {
+                if (costume.rotationCenterX && costume.rotationCenterY) {
+                  origW = costume.rotationCenterX * 2;
+                  origH = costume.rotationCenterY * 2;
+                }
+              }
+
+              const rotationStyle = t.rotationStyle || "all around";
+              const direction = t.direction !== undefined ? t.direction : 90;
+              
+              let normalizedDir = direction % 360;
+              if (normalizedDir > 180) normalizedDir -= 360;
+              if (normalizedDir <= -180) normalizedDir += 360;
+
+              let rotationRad = 0;
+              let scaleX = 1;
+
+              if (rotationStyle === "all around") {
+                rotationRad = (direction - 90) * Math.PI / 180;
+              } else if (rotationStyle === "left-right") {
+                if (normalizedDir < 0) {
+                  scaleX = -1;
+                }
+                rotationRad = 0;
+              } else if (rotationStyle === "don't rotate") {
+                rotationRad = 0;
+              }
+
+              ctx.save();
+              
+              if (!isVisible) {
+                ctx.globalAlpha = 0.35;
+              }
+              
+              ctx.translate(cx, cy);
+              
+              if (scaleX === -1) {
+                ctx.scale(-1, 1);
+              }
+              
+              ctx.rotate(rotationRad);
+              
+              const dw = origW * scale;
+              const dh = origH * scale;
+              const rx = (costume.rotationCenterX || 0) * scale;
+              const ry = (costume.rotationCenterY || 0) * scale;
+              
+              ctx.drawImage(img, -rx, -ry, dw, dh);
+              ctx.restore();
+            }
+          }
+        } catch (err) { console.error(err); } finally { setRenderingStatus(false); }
+      };
+
+      useEffect(() => { if (teacherFile) renderScratchStage(teacherFile, teacherContainerRef, setRenderingTeacher, true); }, [teacherFile]);
+      useEffect(() => { if (studentFile) renderScratchStage(studentFile, studentContainerRef, setRenderingStudent, false); }, [studentFile]);
+
+      const handleAnalyze = async () => {
+        if (!teacherFile || !studentFile) return;
+        setLoading(true); setError(""); setResult(null);
+        try {
+          const tZip = new window.JSZip();
+          const tBuffer = await readFileAsArrayBuffer(teacherFile);
+          const tContents = await tZip.loadAsync(tBuffer);
+          const tJson = JSON.parse(await tContents.file("project.json").async("string"));
+          
+          const sZip = new window.JSZip();
+          const sBuffer = await readFileAsArrayBuffer(studentFile);
+          const sContents = await sZip.loadAsync(sBuffer);
+          const sJson = JSON.parse(await sContents.file("project.json").async("string"));
+          
+          const spriteIcons = {};
+          const extractIcons = async (json, zipContents) => {
+            for (const target of json.targets) {
+              const costumeIdx = typeof target.currentCostume === 'number' ? target.currentCostume : 0;
+              const costume = target.costumes && target.costumes[costumeIdx];
+              if (costume && costume.md5ext) {
+                const filename = costume.md5ext;
+                if (zipContents.files[filename] && !spriteIcons[target.name]) {
+                  const base64 = await zipContents.file(filename).async("base64");
+                  const mimeType = filename.endsWith('.svg') ? 'image/svg+xml' : (filename.endsWith('.png') ? 'image/png' : 'image/jpeg');
+                  spriteIcons[target.name] = `data:${mimeType};base64,${base64}`;
+                }
+              }
+            }
+          };
+          await extractIcons(tJson, tContents);
+          await extractIcons(sJson, sContents);
+
+          const analysisResult = advancedGradeProject(tJson, sJson);
+          setResult({ ...analysisResult, spriteIcons });
+        } catch (e) {
+          console.error("Analysis Error:", e);
+          setError("ファイルの解析に失敗しました。正しい.sb3形式か確認してください。");
+        }
+        setLoading(false);
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col bg-gray-50">
+          <div className="bg-indigo-700 text-white p-4 shadow-md text-center">
+            <h1 className="text-xl font-bold">プログラムチェック　ダッシュボード</h1>
+            <p className="text-xs opacity-80 mt-0.5">※繋がっていない消し忘れブロックはチェック対象外となる安心設計です</p>
+          </div>
+
+          <div className="p-6 max-w-4xl mx-auto w-full space-y-6">
+            
+            {/* 1️⃣ [上段] アップロードエリア */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">📁 1. お手本データと確認データのアップロード</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FileInput id="teacher-file" label="お手本データ (.sb3) を選択" onChange={setTeacherFile} file={teacherFile} colorClass="text-indigo-500" />
+                <FileInput id="student-file" label="確認データ (.sb3) を選択" onChange={setStudentFile} file={studentFile} colorClass="text-emerald-500" />
+              </div>
+            </div>
+
+            {/* 2️⃣ [中段] 採点開始ボタン */}
+            <div className="flex justify-center">
+              <button 
+                onClick={handleAnalyze} 
+                disabled={!teacherFile || !studentFile || loading} 
+                className={`w-full max-w-md py-3.5 rounded-xl font-bold shadow-md text-sm transition transform hover:-translate-y-0.5 ${(!teacherFile || !studentFile || loading) ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none hover:translate-y-0' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+              >
+                {loading ? "ブロック接続ツリーを高度チェック中..." : "🔍 チェックを開始する"}
+              </button>
+            </div>
+
+            {/* 3️⃣ [下段] 仮レイアウト（左右並び配置） */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+              <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+                <h2 className="text-xs font-bold text-indigo-700 uppercase tracking-wider">🖥️ 2. ステージレイアウト比較（左右並び）</h2>
+                {teacherRequiredOpcodes.length > 0 && (
+                  <div className="text-[10px] text-gray-500 max-w-md flex flex-wrap gap-1 items-center">
+                    <span className="font-semibold text-indigo-600">合格基準:</span> 
+                    {teacherRequiredOpcodes.map((op, i) => (
+                       <span key={i} className={`px-1.5 py-0.5 rounded border font-medium ${getBlockColorClasses(op)}`}>{translateOpcode(op)}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* 左側：お手本プレビュー */}
+                <div className="flex flex-col items-center">
+                  <span className="text-xs font-bold text-gray-500 mb-2 flex items-center">🎯 お手本（ゴール）の配置</span>
+                  <div className="scratch-stage-container bg-slate-900 flex items-center justify-center">
+                    {teacherFile ? (
+                      <div ref={teacherContainerRef} className="w-full h-full relative">
+                        {renderingTeacher && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-xs text-white">読込中...</div>}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-center text-xs px-4">お手本ファイルを上からロードしてください</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 右側：生徒プレビュー */}
+                <div className="flex flex-col items-center">
+                  <span className="text-xs font-bold text-gray-500 mb-2 flex items-center">🖥️ 確認データの現在の配置</span>
+                  <div className="scratch-stage-container bg-slate-900 flex items-center justify-center">
+                    {studentFile ? (
+                      <div ref={studentContainerRef} className="w-full h-full relative">
+                        {renderingStudent && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-xs text-white">描画中...</div>}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-center text-xs px-4">チェックしたいファイルを上からロードしてください</div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+              <p className="text-[10px] text-gray-400 mt-3 text-center">※初期状態やブロック未指定で「非表示」のスプライトは半透明（不透明度35%）で表示されます。また、サイズ・向き・回転方法・現在の背景が正確に再現されます。</p>
+            </div>
+
+            {/* 4️⃣ [最下段] チェック結果表示 */}
+            {result ? (
+              <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                  <h3 className="font-bold text-gray-800 text-sm">📊 3. チェック結果フィードバック</h3>
+                </div>
+                
+                <div className="space-y-2.5">
+                  {result.feedbacks.map((fb, idx) => (
+                    <div key={idx} className={`p-3 rounded-lg border-l-4 text-xs flex items-start gap-3 ${fb.type === 'success' ? 'bg-green-50 border-green-500 text-green-800' : (fb.type === 'warning' ? 'bg-yellow-50 border-yellow-500 text-yellow-800' : 'bg-red-50 border-red-500 text-red-800')}`}>
+                      
+                      {/* フィードバック項目の左側にスプライトのアイコンを大きめに表示 */}
+                      {fb.sprite && result.spriteIcons && result.spriteIcons[fb.sprite] && (
+                        <div className="flex-shrink-0 flex flex-col items-center bg-white/60 p-1.5 rounded-md border border-black/10">
+                          <img src={result.spriteIcons[fb.sprite]} alt={fb.sprite} className="w-10 h-10 object-contain" />
+                          <span className="text-[9px] text-gray-600 mt-1 max-w-[55px] truncate text-center" title={fb.sprite}>{fb.sprite}</span>
+                        </div>
+                      )}
+
+                      <div className="flex-1">
+                        <div className="flex items-center font-bold mb-1">
+                          {fb.type === 'success' ? <CheckCircle /> : (fb.type === 'warning' ? <AlertTriangle /> : <XCircle />)}
+                          {fb.title}
+                        </div>
+                        <p className="text-gray-700 leading-relaxed mb-1.5">{fb.message}</p>
+                        
+                        {fb.blocks && (
+                          <div className="flex flex-wrap gap-1">
+                            {fb.blocks.map((bInfo, i) => (
+                              <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${getBlockColorClasses(bInfo.opcode)}`}>
+                                {translateOpcode(bInfo.opcode)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-gray-100">
+                  <h4 className="text-[10px] font-bold text-gray-400 mb-1">作品内で「実際に繋がっている」ブロック一覧 (確認用):</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.studentBlockList.map((item, i) => (
+                      <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded border font-medium flex items-center shadow-sm ${getBlockColorClasses(item.opcode)}`}>
+                        <span className="opacity-75 mr-1.5 tracking-wider">[{item.sprite}]</span>
+                        {translateOpcode(item.opcode)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-100 p-4 rounded-xl border border-dashed border-gray-300 text-center text-xs text-gray-400">
+                チェックを実行すると、ここに「消し忘れブロック」を除外した精緻な構造解析結果が出力されます。
+              </div>
+            )}
+
+            {error && <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-xl text-xs font-medium">{error}</div>}
+
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
