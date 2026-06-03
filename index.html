@@ -77,7 +77,7 @@
       "looks_cleargraphiceffects": "「画像効果をなくす」",
       "looks_show": "「表示する」",
       "looks_hide": "「隠す」",
-      "looks_gotofrontback": "「〇層へ移動する\"」",
+      "looks_gotofrontback": "「〇層へ移動する」",
       "looks_goforwardbackwardlayers": "「〇層〇移動する」",
       "looks_costumenumbername": "「コスチュームの〇」",
       "looks_backdropnumbername": "「背景の〇」",
@@ -494,8 +494,7 @@
         });
       });
 
-      // 💡 修正: 重複判定を「エラー箇所・内容・ブロックの種類」まで精緻に判別するように変更
-      // メッセージだけで一括排除されなくなり、異なるブロックの多発エラーがすべて出力されます
+      // 💡 重複判定を「エラー箇所・内容・ブロックの種類」まで精緻に判別
       const uniqueFeedbacks = feedbacks.filter((v, i, a) => {
         return a.findIndex(t => {
           const sameSprite = t.sprite === v.sprite;
@@ -557,6 +556,9 @@
 
       const teacherContainerRef = useRef(null);
       const studentContainerRef = useRef(null);
+      
+      // 💡 追加: 比較検証フィードバックの位置へスクロールさせるためのRef
+      const feedbackSectionRef = useRef(null);
 
       const extractRequiredOpcodes = (projectJson) => {
         const opcodes = new Set();
@@ -728,6 +730,14 @@
 
           const analysisResult = advancedGradeProject(tJson, sJson);
           setResult({ ...analysisResult, spriteIcons });
+
+          // 💡 追加: 描画更新完了後に、検証フィードバックエリアへスムーズにスクロールさせる
+          setTimeout(() => {
+            if (feedbackSectionRef.current) {
+              feedbackSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 150);
+
         } catch (e) {
           console.error("Analysis Error:", e);
           setError("ファイルの解析に失敗しました。正しい.sb3形式か確認してください。");
@@ -735,8 +745,13 @@
         setLoading(false);
       };
 
+      // 💡 追加: アップロードの位置（トップ）へスムーズにスクロールして戻るための関数
+      const handleScrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
       return (
-        <div className="min-h-screen flex flex-col bg-gray-50">
+        <div className="min-h-screen flex flex-col bg-gray-50 relative">
           <div className="bg-indigo-700 text-white p-4 shadow-md text-center">
             <h1 className="text-xl font-bold">プログラムチェック ダッシュボード</h1>
             <p className="text-xs opacity-80 mt-0.5">※繋がっていない消し忘れブロックは検証対象外となる安心設計です</p>
@@ -813,7 +828,7 @@
 
             {/* 4️⃣ [最下段] 採点評価表示 */}
             {result ? (
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4 animate-fade-in">
+              <div ref={feedbackSectionRef} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4 animate-fade-in scroll-mt-6">
                 <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                   <h3 className="font-bold text-gray-800 text-sm">📊 3. 比較検証フィードバック</h3>
                 </div>
@@ -875,6 +890,21 @@
             {error && <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-xl text-xs font-medium">{error}</div>}
 
           </div>
+
+          {/* 💡 追加: 検証結果表示中にのみ出現する、右下のフローティングスクロール戻るボタン */}
+          {result && (
+            <button 
+              onClick={handleScrollToTop}
+              className="fixed bottom-6 right-6 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg transition duration-200 transform hover:scale-105 z-50 flex flex-col items-center justify-center w-14 h-14"
+              title="ファイル選択に戻る"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+              <span className="text-[9px] font-bold mt-0.5">上に戻る</span>
+            </button>
+          )}
+
         </div>
       );
     }
