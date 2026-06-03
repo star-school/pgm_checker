@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scratchプログラム チェック</title>
+  <title>Scratchプログラムチェック</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   
@@ -77,7 +77,7 @@
       "looks_cleargraphiceffects": "「画像効果をなくす」",
       "looks_show": "「表示する」",
       "looks_hide": "「隠す」",
-      "looks_gotofrontback": "「〇層へ移動する」",
+      "looks_gotofrontback": "「〇層へ移動する\"」",
       "looks_goforwardbackwardlayers": "「〇層〇移動する」",
       "looks_costumenumbername": "「コスチュームの〇」",
       "looks_backdropnumbername": "「背景の〇」",
@@ -194,7 +194,7 @@
       return 'bg-gray-400 text-white border-gray-500';
     };
 
-    // 値だけのブロックや内部的なブロックは採点の「処理ブロック」としてカウントしない
+    // 値だけのブロックや内部的なブロックは検証の「対象ブロック」としてカウントしない
     const isIgnoredOpcode = (opcode) => {
       return opcode === "data_variable" || 
              opcode === "data_listcontents" || 
@@ -289,10 +289,9 @@
       return undefined;
     }
 
-    // 高精度チェックエンジン
+    // 高精度プログラム検証エンジン
     function advancedGradeProject(teacherJson, studentJson) {
       const feedbacks = [];
-      let score = 100;
 
       const teacherMap = getConnectedBlocksMap(teacherJson);
       const studentMap = getConnectedBlocksMap(studentJson);
@@ -321,13 +320,11 @@
       const uniqueExtraBlocks = extraBlocksArray.filter((v, i, a) => a.findIndex(t => (t.opcode === v.opcode && t.sprite === v.sprite)) === i);
 
       if (uniqueExtraBlocks.length > 0) {
-        score -= uniqueExtraBlocks.length * 5; 
         feedbacks.push({
           type: "warning",
           title: "不要なブロックが混じっています",
           message: `お手本にはないブロックが使われています。課題に必要ないブロックが含まれていないか確認してください。`,
           blocks: uniqueExtraBlocks
-          // 不要ブロックは複数のスプライトにまたがる可能性があるので、メインアイコンはなし
         });
       }
 
@@ -336,10 +333,9 @@
         const sSprite = studentMap[spriteName];
 
         if (!sSprite) {
-          score -= 20;
           feedbacks.push({
             type: "error",
-            sprite: spriteName, 
+            sprite: spriteName,
             title: `キャラクター不一致 (${spriteName})`,
             message: `お手本にあるキャラクター「${spriteName}」が、生徒の作品に見つかりません。`
           });
@@ -357,10 +353,9 @@
           const matchingStudentBlockIds = Object.keys(sBlocks).filter(id => sBlocks[id].opcode === tBlock.opcode && !sBlocks[id].shadow);
 
           if (matchingStudentBlockIds.length === 0) {
-            score -= 10;
             feedbacks.push({
               type: "error",
-              sprite: spriteName, 
+              sprite: spriteName,
               title: "必要なブロックが見つかりません",
               message: `「${spriteName}」の中に、必須となる以下のブロックが配置されていません。`,
               blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
@@ -461,39 +456,35 @@
           if (!perfectMatch) {
              if (paramErrorDetail) {
                 if (paramErrorDetail.type === "broadcast") {
-                   score -= 5;
                    feedbacks.push({
                       type: "warning",
-                      sprite: spriteName, 
+                      sprite: spriteName,
                       title: "メッセージの名前（タイポ）に注意！",
                       message: `「${spriteName}」のメッセージ名がズレています。お手本は「${paramErrorDetail.expected}」ですが、生徒は「${paramErrorDetail.actual || '未設定'}」になっています。`,
                       blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
                    });
                 } else if (paramErrorDetail.type === "input") {
-                   score -= 3;
                    const label = paramErrorDetail.key === 'STEPS' ? '歩数' : (paramErrorDetail.key === 'SECS' ? '秒数' : '設定値');
                    feedbacks.push({
                       type: "warning",
-                      sprite: spriteName, 
+                      sprite: spriteName,
                       title: "ブロックの中の「数字（設定）」がおしい！",
                       message: `「${spriteName}」の以下のブロックの【${label}】の数字が違います。お手本は「${paramErrorDetail.expected}」ですが、生徒は異なる数字になっています。`,
                       blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
                    });
                 }
              } else if (nestError) {
-                score -= 8;
                 feedbacks.push({
                   type: "warning",
-                  sprite: spriteName, 
+                  sprite: spriteName,
                   title: "ブロックを置く場所（中に入れる）が違います",
                   message: `「${spriteName}」の以下のブロックは、${translateOpcode(tParentOpcode)} の「中（内側）」に入れる必要があります。`,
                   blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
                 });
              } else if (nextError) { 
-                score -= 8;
                 feedbacks.push({
                   type: "warning",
-                  sprite: spriteName, 
+                  sprite: spriteName,
                   title: "ブロックの順番が違います",
                   message: `「${spriteName}」の以下のブロックは、${translateOpcode(tParentOpcode)} の「次（下）」に繋げる必要があります。順番が入れ替わっていませんか？`,
                   blocks: [{ opcode: tBlock.opcode, sprite: spriteName }]
@@ -503,19 +494,27 @@
         });
       });
 
-      const uniqueFeedbacks = feedbacks.filter((v, i, a) => a.findIndex(t => (t.message === v.message)) === i);
+      // 💡 修正: 重複判定を「エラー箇所・内容・ブロックの種類」まで精緻に判別するように変更
+      // メッセージだけで一括排除されなくなり、異なるブロックの多発エラーがすべて出力されます
+      const uniqueFeedbacks = feedbacks.filter((v, i, a) => {
+        return a.findIndex(t => {
+          const sameSprite = t.sprite === v.sprite;
+          const sameTitle = t.title === v.title;
+          const sameMessage = t.message === v.message;
+          
+          const tBlocksStr = t.blocks ? t.blocks.map(b => b.opcode).join(',') : '';
+          const vBlocksStr = v.blocks ? v.blocks.map(b => b.opcode).join(',') : '';
+          const sameBlocks = tBlocksStr === vBlocksStr;
 
-      if (score === 100) {
+          return sameSprite && sameTitle && sameMessage && sameBlocks;
+        }) === i;
+      });
+
+      if (uniqueFeedbacks.length === 0) {
         uniqueFeedbacks.unshift({
           type: "success",
-          title: "パーフェクト！すべて合っています",
+          title: "パーフェクト！確認完了です",
           message: "ブロックの種類、順番、数字、メッセージのペアまですべて完璧です！"
-        });
-      } else if (score >= 70) {
-        uniqueFeedbacks.unshift({
-          type: "success",
-          title: "おしい！あと一歩で完成です",
-          message: "基本的なブロックの組み方は合っています。下の注意点の箇所を直してみよう！"
         });
       }
 
@@ -533,7 +532,7 @@
         });
       });
 
-      return { score: Math.max(0, score), feedbacks: uniqueFeedbacks, studentBlockList };
+      return { feedbacks: uniqueFeedbacks, studentBlockList };
     }
 
     const FileInput = ({ label, onChange, file, id, colorClass }) => (
@@ -739,8 +738,8 @@
       return (
         <div className="min-h-screen flex flex-col bg-gray-50">
           <div className="bg-indigo-700 text-white p-4 shadow-md text-center">
-            <h1 className="text-xl font-bold">プログラムチェック　ダッシュボード</h1>
-            <p className="text-xs opacity-80 mt-0.5">※繋がっていない消し忘れブロックはチェック対象外となる安心設計です</p>
+            <h1 className="text-xl font-bold">プログラムチェック ダッシュボード</h1>
+            <p className="text-xs opacity-80 mt-0.5">※繋がっていない消し忘れブロックは検証対象外となる安心設計です</p>
           </div>
 
           <div className="p-6 max-w-4xl mx-auto w-full space-y-6">
@@ -761,7 +760,7 @@
                 disabled={!teacherFile || !studentFile || loading} 
                 className={`w-full max-w-md py-3.5 rounded-xl font-bold shadow-md text-sm transition transform hover:-translate-y-0.5 ${(!teacherFile || !studentFile || loading) ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none hover:translate-y-0' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
               >
-                {loading ? "ブロック接続ツリーを高度チェック中..." : "🔍 チェックを開始する"}
+                {loading ? "ブロック接続ツリーを高度解析中..." : "🔍 比較検証を開始する"}
               </button>
             </div>
 
@@ -812,18 +811,17 @@
               <p className="text-[10px] text-gray-400 mt-3 text-center">※初期状態やブロック未指定で「非表示」のスプライトは半透明（不透明度35%）で表示されます。また、サイズ・向き・回転方法・現在の背景が正確に再現されます。</p>
             </div>
 
-            {/* 4️⃣ [最下段] チェック結果表示 */}
+            {/* 4️⃣ [最下段] 採点評価表示 */}
             {result ? (
               <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4 animate-fade-in">
                 <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                  <h3 className="font-bold text-gray-800 text-sm">📊 3. チェック結果フィードバック</h3>
+                  <h3 className="font-bold text-gray-800 text-sm">📊 3. 比較検証フィードバック</h3>
                 </div>
                 
                 <div className="space-y-2.5">
                   {result.feedbacks.map((fb, idx) => (
                     <div key={idx} className={`p-3 rounded-lg border-l-4 text-xs flex items-start gap-3 ${fb.type === 'success' ? 'bg-green-50 border-green-500 text-green-800' : (fb.type === 'warning' ? 'bg-yellow-50 border-yellow-500 text-yellow-800' : 'bg-red-50 border-red-500 text-red-800')}`}>
                       
-                      {/* フィードバック項目の左側にスプライトのアイコンを大きめに表示 */}
                       {fb.sprite && result.spriteIcons && result.spriteIcons[fb.sprite] && (
                         <div className="flex-shrink-0 flex flex-col items-center bg-white/60 p-1.5 rounded-md border border-black/10">
                           <img src={result.spriteIcons[fb.sprite]} alt={fb.sprite} className="w-10 h-10 object-contain" />
@@ -858,6 +856,9 @@
                   <div className="flex flex-wrap gap-1.5">
                     {result.studentBlockList.map((item, i) => (
                       <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded border font-medium flex items-center shadow-sm ${getBlockColorClasses(item.opcode)}`}>
+                        {result.spriteIcons && result.spriteIcons[item.sprite] && (
+                          <img src={result.spriteIcons[item.sprite]} alt={item.sprite} className="w-3.5 h-3.5 mr-1 object-contain bg-white/30 rounded-sm" />
+                        )}
                         <span className="opacity-75 mr-1.5 tracking-wider">[{item.sprite}]</span>
                         {translateOpcode(item.opcode)}
                       </span>
@@ -867,7 +868,7 @@
               </div>
             ) : (
               <div className="bg-gray-100 p-4 rounded-xl border border-dashed border-gray-300 text-center text-xs text-gray-400">
-                チェックを実行すると、ここに「消し忘れブロック」を除外した精緻な構造解析結果が出力されます。
+                検証を実行すると、ここに「消し忘れブロック」を除外した精緻な構造比較結果が出力されます。
               </div>
             )}
 
