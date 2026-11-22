@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scratch ブロック比較ビューア</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-badge">
+        <span class="logo-icon">🧩</span>
+        <div>
+          <h1>Scratch ブロック比較ビューア</h1>
+          <p class="subtitle">あなたのプログラムと解答例の違いをひと目でチェック</p>
+        </div>
+      </div>
+    </div>
+    <div class="header-controls">
+      <label class="control-group">
+        <span>サンプル問題:</span>
+        <select id="preset-select">
+          <option value="square">1. 正方形をかこう（くり返し）</option>
+          <option value="arrow_move">2. 矢印キーで動かそう（条件分岐）</option>
+          <option value="coin_score">3. コインでスコアを増やそう（変数）</option>
+        </select>
+      </label>
+      <label class="control-group">
+        <span>言語:</span>
+        <select id="lang-select">
+          <option value="ja" selected>日本語</option>
+          <option value="ja_hira">にほんご</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <label class="control-group">
+        <span>配色:</span>
+        <select id="style-select">
+          <option value="scratch3" selected>標準</option>
+          <option value="scratch3-high-contrast">ハイコントラスト</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <section class="upload-bar">
+    <div class="drop-zone" id="student-drop-zone" data-role="student">
+      <input type="file" id="student-file-input" accept=".sb3" hidden />
+      <div class="drop-icon">📄</div>
+      <div class="drop-text">
+        <strong>あなたのプログラム (.sb3)</strong>
+        <span id="student-file-name">サンプル: あなたの作品（正方形）</span>
+      </div>
+      <button type="button" class="btn-outline" id="student-browse-btn">ファイルを選択</button>
+    </div>
+
+    <div class="vs-badge">VS</div>
+
+    <div class="drop-zone" id="model-drop-zone" data-role="model">
+      <input type="file" id="model-file-input" accept=".sb3" hidden />
+      <div class="drop-icon">⭐</div>
+      <div class="drop-text">
+        <strong>解答例・おてほん (.sb3)</strong>
+        <span id="model-file-name">サンプル: おてほん（正方形）</span>
+      </div>
+      <button type="button" class="btn-outline" id="model-browse-btn">ファイルを選択</button>
+    </div>
+  </section>
+
+  <section class="summary-bar" id="summary-bar">
+    <div class="score-box">
+      <div class="score-label">一致率</div>
+      <div class="score-value-row">
+        <span class="score-number" id="match-rate">--%</span>
+        <div class="progress-track">
+          <div class="progress-fill" id="match-progress" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-pills">
+      <div class="stat-pill stat-match">
+        <span class="dot"></span>
+        <span>一致</span>
+        <strong id="count-match">0</strong>
+      </div>
+      <div class="stat-pill stat-diff-param">
+        <span class="dot"></span>
+        <span>値がちがう</span>
+        <strong id="count-diff-param">0</strong>
+      </div>
+      <div class="stat-pill stat-missing">
+        <span class="dot"></span>
+        <span>たりない</span>
+        <strong id="count-missing">0</strong>
+      </div>
+      <div class="stat-pill stat-extra">
+        <span class="dot"></span>
+        <span>余分</span>
+        <strong id="count-extra">0</strong>
+      </div>
+    </div>
+
+    <div class="view-toggles">
+      <div class="zoom-controls" aria-label="ブロックの大きさ">
+        <span class="zoom-label">大きさ:</span>
+        <button type="button" class="zoom-btn" id="zoom-out-btn" title="小さくする">－</button>
+        <button type="button" class="zoom-value-btn" id="zoom-reset-btn" title="100%に戻す">100%</button>
+        <button type="button" class="zoom-btn" id="zoom-in-btn" title="大きくする">＋</button>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="dim-matched-toggle" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">一致したブロックを薄くする</span>
+      </label>
+    </div>
+  </section>
+
+  <nav class="sprite-tabs" id="sprite-tabs"></nav>
+
+  <main class="workspace-layout">
+    <section class="comparison-area" id="comparison-area">
+      <!-- スクリプトペアがここに動的に描画される -->
+    </section>
+
+    <aside class="diff-sidebar" id="diff-sidebar">
+      <div class="sidebar-header">
+        <h2>見つけた違い</h2>
+        <span class="diff-total-badge" id="diff-total-badge">0件</span>
+      </div>
+      <div class="legend-box">
+        <div class="legend-item"><span class="legend-swatch swatch-diff"></span>値がちがう（数字や文字）</div>
+        <div class="legend-item"><span class="legend-swatch swatch-missing"></span>たりない（おてほんにある）</div>
+        <div class="legend-item"><span class="legend-swatch swatch-extra"></span>余分（おてほんにない）</div>
+      </div>
+      <ul class="diff-list" id="diff-list"></ul>
+    </aside>
+  </main>
+
+  <div class="block-tooltip" id="block-tooltip" hidden></div>
+
+  <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/scratchblocks.min.js"></script>
+  <script src="vendor/translations-all.js"></script>
+  <script src="src/presets.js"></script>
+  <script src="src/sb3-parser.js"></script>
+  <script src="src/diff-engine.js"></script>
+  <script src="src/block-renderer.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
