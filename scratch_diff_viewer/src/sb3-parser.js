@@ -17,7 +17,8 @@ async function parseSb3File(file) {
 
   // 各ターゲットの現在のコスチューム画像を抽出して Data URL 化
   const targets = Array.isArray(projectJson.targets) ? projectJson.targets : [];
-  for (const pt of parsed.targets) {
+  for (let i = 0; i < parsed.targets.length; i++) {
+    const pt = parsed.targets[i];
     const rawTarget = targets.find((t) => (t.name || 'Stage') === pt.rawName && Boolean(t.isStage) === pt.isStage);
     if (!rawTarget || !Array.isArray(rawTarget.costumes) || rawTarget.costumes.length === 0) continue;
 
@@ -39,7 +40,11 @@ async function parseSb3File(file) {
           : 'application/octet-stream';
 
     const base64 = await assetFile.async('base64');
-    pt.costumeUrl = `data:${mime};base64,${base64}`;
+    const dataUrl = `data:${mime};base64,${base64}`;
+    pt.costumeUrl = dataUrl;
+    if (parsed.compactProject?.targets?.[i]) {
+      parsed.compactProject.targets[i].costumeUrl = dataUrl;
+    }
   }
 
   return parsed;
@@ -47,21 +52,34 @@ async function parseSb3File(file) {
 
 function parseProjectJson(projectJson, sourceName = 'project.json') {
   const targets = Array.isArray(projectJson.targets) ? projectJson.targets : [];
-  const parsedTargets = targets.map((target) => {
+  const parsedTargets = [];
+  const compactTargets = [];
+
+  for (const target of targets) {
     const blocks = target.blocks || {};
     const scripts = extractScripts(blocks);
-    return {
-      name: target.isStage ? 'ステージ' : (target.name || 'スプライト'),
+    const isStage = Boolean(target.isStage);
+    if (scripts.length === 0 && isStage) continue;
+
+    parsedTargets.push({
+      name: isStage ? 'ステージ' : (target.name || 'スプライト'),
       rawName: target.name || 'Stage',
-      isStage: Boolean(target.isStage),
+      isStage,
       costumeUrl: target.costumeUrl || null,
       scripts,
-    };
-  }).filter((t) => t.scripts.length > 0 || !t.isStage);
+    });
+    compactTargets.push({
+      name: target.name || (isStage ? 'Stage' : 'スプライト'),
+      isStage,
+      blocks,
+      costumeUrl: target.costumeUrl || null,
+    });
+  }
 
   return {
     sourceName,
     targets: parsedTargets,
+    compactProject: { targets: compactTargets },
   };
 }
 

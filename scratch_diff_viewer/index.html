@@ -18,14 +18,11 @@
       </div>
     </div>
     <div class="header-controls">
-      <label class="control-group">
-        <span>サンプル問題:</span>
-        <select id="preset-select">
-          <option value="square">1. 正方形をかこう（くり返し）</option>
-          <option value="arrow_move">2. 矢印キーで動かそう（条件分岐）</option>
-          <option value="coin_score">3. コインでスコアを増やそう（変数）</option>
-        </select>
-      </label>
+      <div class="control-group model-selector-group">
+        <label for="model-select">おてほんファイル:</label>
+        <select id="model-select"></select>
+        <button type="button" class="btn-header-danger" id="delete-saved-model-btn" title="このマイおてほんを削除" hidden>削除</button>
+      </div>
       <label class="control-group">
         <span>言語:</span>
         <select id="lang-select">
@@ -45,26 +42,32 @@
   </header>
 
   <section class="upload-bar">
-    <div class="drop-zone" id="student-drop-zone" data-role="student">
+    <div class="drop-zone is-empty" id="student-drop-zone" data-role="student">
       <input type="file" id="student-file-input" accept=".sb3" hidden />
       <div class="drop-icon">📄</div>
       <div class="drop-text">
         <strong>あなたのプログラム (.sb3)</strong>
-        <span id="student-file-name">サンプル: あなたの作品（正方形）</span>
+        <span id="student-file-name">ファイル未選択（.sb3 をドロップまたは選択）</span>
       </div>
-      <button type="button" class="btn-outline" id="student-browse-btn">ファイルを選択</button>
+      <div class="drop-actions">
+        <button type="button" class="btn-icon-clear" id="student-clear-btn" title="選択を解除" hidden>✕</button>
+        <button type="button" class="btn-outline" id="student-browse-btn">ファイルを選択</button>
+      </div>
     </div>
 
     <div class="vs-badge">VS</div>
 
-    <div class="drop-zone" id="model-drop-zone" data-role="model">
+    <div class="drop-zone is-empty" id="model-drop-zone" data-role="model">
       <input type="file" id="model-file-input" accept=".sb3" hidden />
       <div class="drop-icon">⭐</div>
       <div class="drop-text">
         <strong>解答例・おてほん (.sb3)</strong>
-        <span id="model-file-name">サンプル: おてほん（正方形）</span>
+        <span id="model-file-name">おてほん未選択</span>
       </div>
-      <button type="button" class="btn-outline" id="model-browse-btn">ファイルを選択</button>
+      <div class="drop-actions">
+        <button type="button" class="btn-save-model" id="save-model-btn" title="このおてほんをブラウザに保存" hidden>★ 保存</button>
+        <button type="button" class="btn-outline" id="model-browse-btn">ファイルを選択</button>
+      </div>
     </div>
   </section>
 
@@ -139,11 +142,13 @@
   </main>
 
   <div class="block-tooltip" id="block-tooltip" hidden></div>
+  <div class="toast-banner" id="toast-banner" hidden></div>
 
   <script src="vendor/jszip.min.js"></script>
   <script src="vendor/scratchblocks.min.js"></script>
   <script src="vendor/translations-all.js"></script>
-  <script src="src/presets.js"></script>
+  <script src="src/models-data.js"></script>
+  <script src="src/model-storage.js"></script>
   <script src="src/sb3-parser.js"></script>
   <script src="src/diff-engine.js"></script>
   <script src="src/block-renderer.js"></script>

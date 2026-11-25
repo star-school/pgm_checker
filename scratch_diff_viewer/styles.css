@@ -21,6 +21,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", system-ui, -apple-system, sans-serif;
@@ -97,6 +101,27 @@ body {
   cursor: pointer;
 }
 
+.model-selector-group select {
+  min-width: 185px;
+  max-width: 260px;
+}
+
+.btn-header-danger {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(220, 38, 38, 0.88);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-header-danger:hover {
+  background: #b91c1c;
+}
+
 /* Upload Bar */
 .upload-bar {
   display: grid;
@@ -124,6 +149,55 @@ body {
 .drop-zone.drag-over {
   border-color: var(--scratch-blue);
   background: #eef5ff;
+}
+
+.drop-zone.is-empty {
+  background: #f8fafd;
+  border-color: #d3deee;
+}
+
+.drop-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-save-model {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-save-model:hover {
+  background: #fef3c7;
+}
+
+.btn-icon-clear {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-clear:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
 }
 
 .drop-icon {
@@ -473,6 +547,11 @@ body {
   color: var(--color-match);
 }
 
+.sprite-tab-badge.preview-only {
+  background: #edf2f8;
+  color: var(--text-muted);
+}
+
 /* Workspace Layout */
 .workspace-layout {
   display: grid;
@@ -558,12 +637,29 @@ body {
   text-align: center;
 }
 
+.preview-hint-placeholder {
+  padding: 28px 16px;
+  border: 2px dashed #bfdbfe;
+  border-radius: 10px;
+  background: #f0f7ff;
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 /* SVG Diff Styling */
 .svg-container svg {
   display: block;
   max-width: none;
   height: auto;
   overflow: visible;
+}
+
+.comparison-area.preview-mode .diff-block-match > path,
+.comparison-area.preview-mode .diff-block-match > text,
+.comparison-area.preview-mode .diff-block-match > g:not(.diff-script-group) {
+  opacity: 1;
 }
 
 .dim-matched .diff-block-match > path,
@@ -766,6 +862,20 @@ body {
   line-height: 1.45;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
   pointer-events: none;
+}
+
+.toast-banner {
+  position: fixed;
+  bottom: 20px;
+  right: 24px;
+  z-index: 1100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
 }
 
 @media (max-width: 1024px) {
